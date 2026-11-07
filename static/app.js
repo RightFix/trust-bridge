@@ -1,4 +1,4 @@
-/* TrustBridge (ClearPay) — no-build frontend */
+/* TrustBridge — no-build frontend */
 (() => {
   "use strict";
 
@@ -117,7 +117,9 @@
   function route() {
     const h = (location.hash || "#/").replace(/^#/, "");
     const m = h.match(/^\/job\/([\w-]+)/);
-    return m ? { view: "job", id: m[1] } : { view: "home" };
+    if (m) return { view: "job", id: m[1] };
+    if (h.startsWith("/jobs")) return { view: "jobs" };
+    return { view: "landing" };
   }
 
   let renderSeq = 0;
@@ -139,8 +141,12 @@
         state.jobs = data.jobs;
         if (!state.health) state.health = await api("/api/health").catch(() => null);
         if (seq !== renderSeq) return;
-        app.innerHTML = homeHTML();
-        bindHome();
+        if (r.view === "jobs") {
+          app.innerHTML = jobsHTML();
+          bindJobs();
+        } else {
+          app.innerHTML = landingHTML();
+        }
       }
     } catch (e) {
       if (seq !== renderSeq) return;
@@ -153,11 +159,90 @@
       b.classList.toggle("active", b.dataset.role === state.role));
   }
 
-  // ---------- home ----------------------------------------------------------
-  function homeHTML() {
+  // ---------- landing -------------------------------------------------------
+  const FLOW = [
+    ["Describe", "The client writes the job in plain language — no spec jargon."],
+    ["Clarify", "The AI asks 3–5 targeted questions: what “done” means, examples, deadline, revisions, exclusions."],
+    ["Lock", "Both sides confirm a structured spec — deliverables, checklist, deadline, revisions, out-of-scope — and it is hash-locked."],
+    ["Fund", "The client funds the milestone in escrow."],
+    ["Verify", "Deterministic checks first (word count, file type, keywords, sections, test cases), AI for the rest."],
+    ["Release", "Everything passes → funds release automatically. Otherwise a human reviewer decides."],
+  ];
+
+  function landingHTML() {
+    const prov = state.health ? state.health.llm_provider : "?";
+    const provLabel = prov === "mock" ? "offline mode (no API key set)" : prov;
+
+    const quick = state.jobs.map((j) => {
+      const held = j.ledger.reduce((s, e) =>
+        s + (e.kind === "FUND" ? e.amount_usdt : -e.amount_usdt), 0);
+      return `
+        <a class="demo-row" href="#/job/${esc(j.id)}">
+          <div class="demo-row-main">
+            <b>${esc(j.title)}</b>
+            <div class="muted">${esc(j.brief.slice(0, 120))}${j.brief.length > 120 ? "…" : ""}</div>
+          </div>
+          <div class="demo-row-meta">
+            <span class="chip ${STATUS_CLASS[j.status] || ""}">${esc(j.status_label)}</span>
+            ${held > 0 ? `<span class="badge obj">${held} USDT held</span>` : ""}
+            <span class="arrow" aria-hidden="true">→</span>
+          </div>
+        </a>`;
+    }).join("");
+
+    return `
+      <section class="hero">
+        <span class="badge obj">Definition of done, agreed upfront</span>
+        <h1>Agree on “done” before<br class="nb" /> the work starts.</h1>
+        <p>TrustBridge turns a plain-language brief into a checkable acceptance
+          checklist, verifies the delivered work against it, and releases the
+          milestone when everything passes — or hands it to a human reviewer
+          when it doesn’t.</p>
+        <div class="btn-row">
+          <a class="btn primary" href="#/jobs">Open the workspace →</a>
+          <a class="btn" href="/docs" target="_blank" rel="noopener">Explore the API</a>
+        </div>
+      </section>
+
+      <div class="card">
+        <h2>How it works</h2>
+        <ol class="flow">
+          ${FLOW.map(([t, d]) => `
+            <li><b>${t}</b><span>${d}</span></li>`).join("")}
+        </ol>
+        <p class="sub" style="margin-top:14px; margin-bottom:0">
+          AI engine: <strong>${esc(provLabel)}</strong> · Auth: <code>X-API-Key</code> ·
+          Storage: SQLite</p>
+      </div>
+
+      <div class="grid2">
+        <div class="card">
+          <h3>Layer 1 · Clarity tool</h3>
+          <p class="sub">Brief builder → AI clarification questions → structured spec with
+            OBJECTIVE/SUBJECTIVE checklist → plain-language rewrite for the freelancer →
+            both sides confirm and lock → verification report.</p>
+          <a href="#/jobs">Open the workspace →</a>
+        </div>
+        <div class="card">
+          <h3>Layer 2 · Platform API</h3>
+          <p class="sub">The same engine plus an escrow ledger, exposed as a small REST API
+            a marketplace could call: create → clarify → confirm → fund → submit → report.</p>
+          <a href="/docs" target="_blank" rel="noopener">View OpenAPI docs →</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Demo jobs</h2>
+        <p class="sub">Two flows are pre-seeded — jump straight into either one.</p>
+        ${state.jobs.length ? quick : `<p class="muted">No jobs yet.</p>`}
+      </div>`;
+  }
+
+  // ---------- workspace (job list + creation) --------------------------------
+  function jobsHTML() {
     const prov = state.health ? state.health.llm_provider : "?";
     const provLabel = prov === "mock"
-      ? "offline deterministic mode (no API key set)"
+      ? "offline mode (no API key set)"
       : `${prov} (LLM_API_KEY from environment)`;
     const jobs = state.jobs.map((j) => {
       const held = j.ledger.reduce((s, e) =>
@@ -169,7 +254,7 @@
           <div class="job-meta">
             <span class="chip ${STATUS_CLASS[j.status] || ""}">${esc(j.status_label)}</span>
             <span class="badge src">${j.spec ? j.spec.checklist.length : 0} checklist items</span>
-            ${held > 0 ? `<span class="badge sim">⚠ ${held} USDT held · simulated</span>` : ""}
+            ${held > 0 ? `<span class="badge obj">${held} USDT held</span>` : ""}
             <span class="muted" style="font-size:12.5px">${fmtDate(j.created_at)}</span>
           </div>
         </a>`;
@@ -177,14 +262,11 @@
 
     return `
       <div class="card" style="margin-top:18px">
-        <h2>Agree on “done” before the work starts</h2>
-        <p class="sub">
-          Describe the job in plain language → the AI asks 3–5 targeted questions → both sides
-          confirm a structured, checkable spec → the deliverable is verified against it →
-          payment is released from a <strong>simulated escrow ledger</strong>.
-        </p>
-        <div class="notice">⚠ Simulated escrow — no real money moves. This prototype does not
-          integrate with Cleva, Tether, Upwork or Fiverr.</div>
+        <div class="job-meta" style="margin:0 0 6px">
+          <a href="#/" class="muted" style="font-size:13px">← Home</a>
+        </div>
+        <h2 class="mt0">Create a job</h2>
+        <p class="sub">Describe the job in plain language — the AI asks the follow-up questions.</p>
 
         <label class="field" for="brief">1 · Describe the job in plain language</label>
         <textarea id="brief" placeholder="e.g. Write a 600-word blog post about how freelancers can avoid scope creep…"></textarea>
@@ -205,7 +287,7 @@
       </div>`;
   }
 
-  function bindHome() {
+  function bindJobs() {
     const btn = $("#create");
     if (!btn) return;
     btn.onclick = async () => {
@@ -223,7 +305,7 @@
   function tabsHTML(job) {
     const tabs = [
       ["spec", "Spec & confirmation"],
-      ["escrow", "Escrow (simulated)"],
+      ["escrow", "Escrow"],
       ["submit", "Submission"],
       ["report", "Verification report"],
       ["timeline", "Timeline"],
@@ -265,10 +347,10 @@
     return `
       <div class="card" style="margin-top:18px">
         <div class="job-meta" style="margin:0 0 6px">
-          <a href="#/" class="muted" style="font-size:13px">← All jobs</a>
+          <a href="#/jobs" class="muted" style="font-size:13px">← All jobs</a>
           <span class="chip ${STATUS_CLASS[job.status] || ""}">${esc(job.status_label)}</span>
           ${job.locked ? `<span class="badge lock">🔒 Spec locked</span>` : ""}
-          ${held > 0 ? `<span class="badge sim">⚠ ${held} USDT held · simulated</span>` : ""}
+          ${held > 0 ? `<span class="badge obj">${held} USDT held</span>` : ""}
         </div>
         <h2 class="mt0">${esc(job.title)}</h2>
         <p class="sub">${esc(job.brief)}</p>
@@ -460,28 +542,26 @@
         <td>${fmtDate(e.created_at)}</td>
         <td><span class="badge ${e.kind === "RELEASE" ? "ok" : e.kind === "REFUND" ? "bad" : "obj"}">${e.kind}</span></td>
         <td class="num">${e.amount_usdt} USDT</td>
-        <td>${esc(e.note)} <span class="badge sim">simulated</span></td>
+        <td>${esc(e.note)}</td>
       </tr>`).join("");
     return `
       <div class="card">
         <h2>Milestone escrow</h2>
-        <div class="notice" style="margin-bottom:12px">⚠ Simulated escrow ledger — fake USDT
-          entries in local SQLite. No wallet, no chain, no real funds.</div>
         <dl class="kv">
           <dt>Status</dt><dd>${esc(job.status_label)}</dd>
-          <dt>Held now</dt><dd>${job.held_usdt} USDT (simulated)</dd>
-          <dt>Milestone</dt><dd>${job.amount_usdt || "—"} USDT (simulated)</dd>
+          <dt>Held now</dt><dd>${job.held_usdt} USDT</dd>
+          <dt>Milestone</dt><dd>${job.amount_usdt || "—"} USDT</dd>
         </dl>
         ${canFund ? `
-          <label class="field" for="fund-amount">Fund amount (USDT, simulated)</label>
+          <label class="field" for="fund-amount">Fund amount (USDT)</label>
           <input type="number" id="fund-amount" min="1" step="1" value="${job.amount_usdt || 500}" />
           <div class="btn-row">
             <button class="btn primary" data-act="fund" ${state.busy ? "disabled" : ""}>
-              Fund milestone (simulated) →</button>
+              Fund milestone →</button>
           </div>` : ""}
         ${job.status === "confirmed" && !isClient()
           ? `<p class="sub" style="margin-top:12px">Switch to the <b>Client</b> role to fund the
-               milestone (simulated).</p>` : ""}
+               milestone.</p>` : ""}
         ${job.status === "clarifying" || job.status === "spec_ready" || job.status === "spec_editing"
           ? `<p class="sub" style="margin-top:12px">Both sides must confirm the locked spec first.</p>` : ""}
         <h3 style="margin-top:18px">Ledger entries</h3>
@@ -527,7 +607,7 @@
         a deliverable.</p>`
       : !canSubmit ? `<p class="sub">${job.status === "clarifying" || job.status === "spec_ready"
           || job.status === "spec_editing" || job.status === "confirmed"
-          ? "The spec must be locked and the milestone funded (simulated) first."
+          ? "The spec must be locked and the milestone funded first."
           : "Nothing to submit right now — see the verification report."}</p>` : "";
 
     return `
@@ -557,7 +637,7 @@
     }
     const bannerCls = rep.overall === "pass" ? "ok" : rep.overall === "fail" ? "bad" : "warn";
     const bannerTxt = rep.overall === "pass"
-      ? "✓ All checklist items passed — payment released automatically (simulated)."
+      ? "✓ All checklist items passed — payment released automatically."
       : rep.overall === "fail"
         ? "✕ Verification failed — a human reviewer decides release / changes / refund."
         : "⚠ Objective checks passed; subjective items need human review.";
@@ -580,15 +660,14 @@
     const reviewPanel = job.status === "human_review" && isReviewer() ? `
       <div class="card" style="border-color:#fcd34d">
         <h2>🧑‍⚖️ Human review</h2>
-        <p class="sub">The AI recommends; you decide. Choose release, request changes, or refund
-          (all movements are simulated).</p>
+        <p class="sub">The AI recommends; you decide. Choose release, request changes, or refund.</p>
         <div class="banner warn">AI recommendation: ${esc(rep.recommendation)}</div>
         <label class="field" for="r-note">Reviewer note</label>
         <textarea id="r-note" placeholder="What did you check? Why this decision?"></textarea>
         <div class="btn-row">
-          <button class="btn ok" data-act="review" data-decision="release" ${state.busy ? "disabled" : ""}>Release payment (simulated)</button>
+          <button class="btn ok" data-act="review" data-decision="release" ${state.busy ? "disabled" : ""}>Release payment</button>
           <button class="btn" data-act="review" data-decision="request_changes" ${state.busy ? "disabled" : ""}>Request changes</button>
-          <button class="btn danger" data-act="review" data-decision="refund" ${state.busy ? "disabled" : ""}>Refund client (simulated)</button>
+          <button class="btn danger" data-act="review" data-decision="refund" ${state.busy ? "disabled" : ""}>Refund client</button>
         </div>
       </div>` : job.status === "human_review" ? `
       <div class="banner warn">This job is waiting for a human reviewer — switch to the
@@ -631,7 +710,7 @@
     return `
       <div class="card">
         <h2>Status timeline</h2>
-        <p class="sub">Every state change on this job, including simulated ledger movements.</p>
+        <p class="sub">Every state change on this job, including ledger movements.</p>
         <ul class="timeline">${events || "<li class='muted'>No events.</li>"}</ul>
       </div>
       <div class="card">
@@ -682,7 +761,7 @@
       if (a === "fund") {
         const amount = parseFloat($("#fund-amount").value);
         const out = await run(() => post(`/api/jobs/${id}/fund`, { role: "client", amount_usdt: amount }));
-        if (out) { state.job = out; setFlash("Milestone funded in the simulated ledger."); render(); }
+        if (out) { state.job = out; setFlash("Milestone funded."); render(); }
         else render();
       }
 
@@ -725,7 +804,7 @@
         if (out) {
           state.job = out; state.tab = "report";
           setFlash(out.status === "released"
-            ? "Verification passed — funds released (simulated)."
+            ? "Verification passed — funds released."
             : "Verification finished — routed to human review.");
           render();
         } else render();

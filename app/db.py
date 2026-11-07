@@ -1,4 +1,4 @@
-"""TrustBridge / ClearPay — data access layer (SQLite)."""
+"""TrustBridge — data access layer (SQLite)."""
 from __future__ import annotations
 
 import json
@@ -47,7 +47,6 @@ CREATE TABLE IF NOT EXISTS ledger_entries (
     amount_usdt REAL NOT NULL,
     currency TEXT NOT NULL DEFAULT 'USDT',
     note TEXT NOT NULL,
-    simulated INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL
 );
 
@@ -95,12 +94,12 @@ ST_CLARIFYING = "clarifying"        # answering follow-up questions
 ST_SPEC_READY = "spec_ready"        # spec generated, awaiting confirmations
 ST_SPEC_EDITING = "spec_editing"    # freelancer flagged items, client editing
 ST_CONFIRMED = "confirmed"          # both sides confirmed, spec locked
-ST_FUNDED = "funded"                # simulated escrow funded
+ST_FUNDED = "funded"                # escrow funded
 ST_SUBMITTED = "submitted"          # deliverable submitted, verification ran
 ST_VERIFYING = "verifying"          # checks running
 ST_HUMAN_REVIEW = "human_review"    # routed to human reviewer
-ST_RELEASED = "released"            # simulated funds released to freelancer
-ST_REFUNDED = "refunded"            # simulated funds returned to client
+ST_RELEASED = "released"            # funds released to freelancer
+ST_REFUNDED = "refunded"            # funds returned to client
 ST_CHANGES = "changes_requested"    # reviewer asked for changes (resubmit allowed)
 
 STATUS_LABELS = {
@@ -108,12 +107,12 @@ STATUS_LABELS = {
     ST_SPEC_READY: "Spec awaiting confirmation",
     ST_SPEC_EDITING: "Spec edits requested",
     ST_CONFIRMED: "Spec locked",
-    ST_FUNDED: "Milestone funded (simulated)",
+    ST_FUNDED: "Milestone funded",
     ST_SUBMITTED: "Submitted",
     ST_VERIFYING: "Verifying",
     ST_HUMAN_REVIEW: "Human review",
-    ST_RELEASED: "Released (simulated)",
-    ST_REFUNDED: "Refunded (simulated)",
+    ST_RELEASED: "Released",
+    ST_REFUNDED: "Refunded",
     ST_CHANGES: "Changes requested",
 }
 
@@ -165,7 +164,6 @@ def job_to_dict(row: sqlite3.Row, conn: sqlite3.Connection | None = None) -> dic
     d["confirmed_freelancer"] = bool(d["confirmed_freelancer"])
     d["locked"] = bool(d["lock_hash"])
     d["status_label"] = STATUS_LABELS.get(d["status"], d["status"])
-    d["simulated"] = True
     if conn is not None:
         d["ledger"] = ledger_entries(conn, d["id"])
         d["events"] = get_events(conn, d["id"])
@@ -243,17 +241,12 @@ def get_events(conn: sqlite3.Connection, job_id: str) -> list[dict]:
     return [dict(r) for r in rows]
 
 
-# --- ledger (SIMULATED) -----------------------------------------------------
+# --- ledger ----------------------------------------------------------------
 def ledger_entries(conn: sqlite3.Connection, job_id: str) -> list[dict]:
     rows = conn.execute(
         "SELECT * FROM ledger_entries WHERE job_id=? ORDER BY id ASC",
         (job_id,)).fetchall()
-    out = []
-    for r in rows:
-        d = dict(r)
-        d["simulated"] = bool(d.pop("simulated"))
-        out.append(d)
-    return out
+    return [dict(r) for r in rows]
 
 
 # --- submissions / verification / reviews -----------------------------------

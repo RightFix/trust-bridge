@@ -83,7 +83,7 @@ Not included:
   • Inputs beyond the four agreed formats
 
 All three items are OBJECTIVE: they are checked by code, not opinion. If the tests
-pass, payment releases automatically (simulated escrow)."""
+pass, payment releases automatically."""
 
 QUESTIONS_A_FREELANCER = [
     "Do you want the function to raise ValueError on unparseable input, or "
@@ -94,7 +94,7 @@ QUESTIONS_A_FREELANCER = [
     "Are the out-of-scope items definitely excluded even if they seem small?",
 ]
 
-SOLUTION_PY = '''"""Money-string parsing for the ClearPay demo."""
+SOLUTION_PY = '''"""Money-string parsing for the TrustBridge demo."""
 
 from __future__ import annotations
 
@@ -166,7 +166,7 @@ Not included:
   • Social media promotion
 
 The first two items are checked by code. The tone item needs a human: if the
-objective checks pass but tone is off, a reviewer decides (simulated escrow)."""
+objective checks pass but tone is off, a reviewer decides."""
 
 QUESTIONS_B_FREELANCER = [
     "Can you paste the exact example post you keep mentioning? “Friendly and "
@@ -218,7 +218,7 @@ def _seed_job_a(conn) -> None:
     from . import ledger
     ledger.fund(conn, db.get_job(conn, job_id), 450)
     db.add_event(conn, job_id, "demo", "Seeded demo job",
-                 "Job A — passes verification and auto-releases (simulated).")
+                 "Job A — passes verification and auto-releases.")
 
 
 def _seed_job_b(conn) -> None:

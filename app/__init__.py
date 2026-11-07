@@ -1,1 +1,1 @@
-"""TrustBridge (ClearPay) package."""
+"""TrustBridge package."""

@@ -46,7 +46,7 @@ def run_verification(conn, job: dict, submission: dict) -> VerificationReport:
     auto_release = not failures and not reviews
 
     if auto_release:
-        overall, rec = "pass", "All checklist items passed — release the milestone (simulated)."
+        overall, rec = "pass", "All checklist items passed — release the milestone."
     elif failures and not reviews:
         overall = "fail"
         rec = (f"{len(failures)} item(s) failed — recommend request changes, "

@@ -199,7 +199,7 @@ def confirm(job_id: str, body: RoleRequest, conn=Depends(_conn)) -> dict:
 
 
 # --------------------------------------------------------------------------
-# simulated escrow
+# escrow
 # --------------------------------------------------------------------------
 @router.post("/jobs/{job_id}/fund", dependencies=[Depends(require_api_key)])
 def fund(job_id: str, body: FundRequest, conn=Depends(_conn)) -> dict:
@@ -220,7 +220,7 @@ def submit(job_id: str, body: SubmitRequest, conn=Depends(_conn)) -> dict:
     if job["status"] not in (db.ST_FUNDED, db.ST_CHANGES, db.ST_SUBMITTED):
         raise HTTPException(
             status_code=409,
-            detail="Job must be funded (simulated) before a deliverable can be submitted.")
+            detail="Job must be funded before a deliverable can be submitted.")
     if not job["spec"]:
         raise HTTPException(status_code=409, detail="No spec to verify against.")
     sub_id = db.add_submission(conn, job_id, body.kind, body.content, body.filename)

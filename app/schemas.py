@@ -136,5 +136,4 @@ class VerificationReport(BaseModel):
     items: list[ItemResult]
     checked_by_ai: int
     checked_deterministically: int
-    simulated: Literal[True] = True
     created_at: str

@@ -1,2 +1,19 @@
+# dependencies / env
 node_modules
 .env
+
+# python
+.venv/
+__pycache__/
+*.py[cod]
+
+# local database & uploads (demo data is re-seeded automatically)
+data/
+
+# logs / editor
+logs
+*.log
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store

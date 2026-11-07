@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="TrustBridge (ClearPay) — agree on a checkable definition of done, verify the work, and release payment in a simulated escrow." />
+  <title>TrustBridge · ClearPay prototype</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="top">
+    <div class="top-inner">
+      <a class="brand" href="#/">
+        <span class="logo" aria-hidden="true"></span>
+        <span>TrustBridge <small>· ClearPay prototype</small></span>
+      </a>
+      <span class="badge sim" title="No real money moves anywhere in this app">⚠ Simulated escrow</span>
+      <span class="spacer"></span>
+      <div class="roles" id="roles" title="Demo roles — no real accounts">
+        <button data-role="client">Client</button>
+        <button data-role="freelancer">Freelancer</button>
+        <button data-role="reviewer">Reviewer</button>
+      </div>
+      <a class="btn sm ghost" href="/docs" target="_blank" rel="noopener" title="OpenAPI docs">API</a>
+    </div>
+  </header>
+
+  <main class="wrap" id="app">
+    <div class="loading">Loading…</div>
+  </main>
+
+  <footer class="foot">
+    <strong>Simulated escrow only.</strong> No real money, wallets or payment providers are involved.<br />
+    TrustBridge is a hackathon prototype. It is not affiliated with, endorsed by, or integrated with
+    Cleva, Tether, Upwork or Fiverr.
+  </footer>
+
+  <script src="/config.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>

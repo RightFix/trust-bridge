@@ -1,0 +1,21 @@
+# Render Blueprint — TrustBridge (ClearPay) prototype
+# Render reads this automatically when you create a Web Service from the repo
+# (branch: demo). See README "Deploy on Render".
+services:
+  - type: web
+    name: trustbridge
+    runtime: python
+    branch: demo
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m app
+    healthCheckPath: /api/health
+    envVars:
+      # Render cannot reach 127.0.0.1 — the app must listen on all interfaces.
+      - key: HOST
+        value: 0.0.0.0
+      # NOTE: Render injects PORT automatically and app/__main__.py reads it.
+      # Demo API key for X-API-Key auth (not a real secret store — see .env.example).
+      - key: API_KEY
+        generateValue: true
+      # No LLM_* keys set → the app runs in deterministic offline mode on Render,
+      # so the demo works without any paid third-party API.
